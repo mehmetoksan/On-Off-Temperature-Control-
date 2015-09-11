@@ -1,0 +1,111 @@
+
+
+#include <16F877A.h> 
+#device  ADC=10
+#use delay(clock=20000000) 
+#fuses NOWDT NOPROTECT NODEBUG NOBROWNOUT HS 
+#use fast_io(c) 
+#use fast_io(d) 
+#define  LCD_ENABLE_PIN PIN_D0
+#define  LCD_RS_PIN     PIN_D1
+#define  LCD_RW_PIN     PIN_D2
+#define  LCD_DATA4      PIN_D4
+#define  LCD_DATA5      PIN_D5   
+#define  LCD_DATA6      PIN_D6
+#define  LCD_DATA7      PIN_D7
+#include <lcd.c> 
+
+int8  count=0;
+int8  count1;
+unsigned int16 feedback,error,pre_error,integral,derivative; 
+int16 control; 
+int16 setpoint; 
+float Kp, Ki, Kd, P, I, D, dt,voltaj; 
+
+#INT_TIMER0
+void timer0_kesme () 
+{ 
+ set_timer0(6);
+ ++count; 
+ 
+ if(count==10) 
+   {
+    
+    count=0;
+    
+    setpoint=90;
+   
+     feedback=read_adc();
+    
+     error=setpoint-feedback; 
+     integral+=error;            // Accumulated sum of error 
+     derivative=error-pre_error; // Derivative of error 
+    
+        Kp = 10; 
+        Ki = 5; 
+        Kd = 0.0001; // Assign value for Kp, Ki, Kd 
+            
+         P=Kp*error; 
+         I=Ki*integral; 
+         D=Kd*derivative; 
+            
+         control=(int16)(P+I+D); 
+          
+         if(control>1000) 
+          { 
+            pre_error = error;
+            control=1000;   // Limit the maximum value control at 90% 
+          }
+          if(control<10) 
+          { 
+            pre_error = error;
+            control=10;   // Limit the minimum value control at 10% 
+             } 
+          
+   }
+  
+ void main ()
+ 
+ {
+ 
+  setup_timer_2(T2_DIV_BY_16,255,1);   // prescale=16, PR2=195, postscale=16  100HZ İÇİN
+  set_pwm1_duty(0);                    // --> fsw = 78.12 kHz
+ 
+  set_tris_c(0x00);                    
+  setup_CCP1(CCP_PWM);                  
+  
+  setup_adc(ADC_CLOCK_INTERNAL);      
+  setup_adc_ports(all_analog);       
+  
+  lcd_init();                          
+
+  setup_timer_0(RTCC_DIV_2); 
+  set_timer0(6);                       // T_overflow = 2*(256-6)*0.2us = 100us 
+  enable_interrupts(INT_RTCC);         // enable interrupts Timer0 
+  enable_interrupts(GLOBAL);           // enable global interrupts          
+  count1=0;
+ while(true) 
+  
+  {
+     set_adc_channel(0);
+     delay_ms(20);
+     feedback=read_adc();
+     delay_ms(20);
+     voltaj=(float)feedback*250/1024;// adc
+     
+     if ((voltaj>140)&&(Count1>=2))
+     {
+         count1=count1-2;
+     }
+     else if ((voltaj<136)&&(Count1<120))
+     {
+
+         count1=count1+2;
+     }
+
+      printf(lcd_putc"\fTemp.%f",voltaj);
+      printf(lcd_putc"SP%lu",setpoint);
+      set_pwm1_duty(count1);
+
+    }
+} 
